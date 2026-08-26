@@ -19,21 +19,20 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const Product = require('./models/Product');
+const User = require('./models/User');
+const Category = require('./models/Category');
+const { categories, products } = require('./seed/sampleData');
 
 const app = express();
 
-// Connect to Database
+// Connect to Database & Auto-Seed
 connectDB().then(async () => {
-  // Auto-seed if database contains zero products
   try {
     const productCount = await Product.countDocuments();
     if (productCount === 0) {
-      console.log('[Server Startup] Database is empty. Running initial seeder script...');
-      const { categories, products, sampleReviews } = require('./seed/sampleData');
-      const User = require('./models/User');
-      const Category = require('./models/Category');
+      console.log('[Server Startup] Database is empty. Auto-seeding initial products & demo accounts...');
 
-      const adminUser = await User.create({
+      await User.create({
         name: 'SmartCart Administrator',
         email: 'admin@smartcart.com',
         password: 'Admin@123456',
@@ -41,7 +40,7 @@ connectDB().then(async () => {
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
       });
 
-      const testUser = await User.create({
+      await User.create({
         name: 'Alex Johnson',
         email: 'user@smartcart.com',
         password: 'User@123456',
@@ -55,16 +54,23 @@ connectDB().then(async () => {
         categoryMap[cat.name] = cat._id;
       });
 
-      const formattedProducts = products.map((prod) => ({
-        ...prod,
-        slug: `${prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.floor(Math.random() * 1000)}`,
-        category: categoryMap[prod.categoryName],
-      }));
-      await Product.insertMany(formattedProducts);
-      console.log('[Server Startup] Auto-seeding complete! Demo accounts & products ready.');
+      const formattedProducts = products.map((prod) => {
+        const catId = categoryMap[prod.categoryName];
+        const slug = prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        return {
+          ...prod,
+          slug: `${slug}-${Math.floor(Math.random() * 1000)}`,
+          category: catId,
+          viewsCount: Math.floor(Math.random() * 150) + 20,
+          salesCount: Math.floor(Math.random() * 40) + 5,
+        };
+      });
+
+      const inserted = await Product.insertMany(formattedProducts);
+      console.log(`[Server Startup] Auto-seeded ${inserted.length} products & demo accounts successfully!`);
     }
   } catch (seedErr) {
-    console.error('[Server Startup Auto-seed Warning]:', seedErr.message);
+    console.error('[Server Startup Auto-seed Error]:', seedErr.message);
   }
 });
 
@@ -75,8 +81,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Basic Rate Limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // limit each IP to 300 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests from this IP, please try again later.' },
