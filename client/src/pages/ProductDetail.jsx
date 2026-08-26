@@ -7,7 +7,7 @@ import { useToast } from '../components/common/Toast';
 import Canvas3DViewer from '../components/3d/Canvas3DViewer';
 import ReviewSection from '../components/product/ReviewSection';
 import RecommendationSection from '../components/product/RecommendationSection';
-import RatingStars from '../common/RatingStars';
+import RatingStars from '../components/common/RatingStars';
 import { ProductDetailSkeleton } from '../components/common/Skeleton';
 import { formatCurrency, calculateDiscountPrice } from '../utils/formatters';
 import {
